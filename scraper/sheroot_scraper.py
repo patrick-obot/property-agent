@@ -113,7 +113,10 @@ async def scrape_listings(skip_dates: set | None = None) -> list[dict]:
     all_events: list[dict] = []
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        browser = await pw.chromium.launch(
+            headless=True,
+            executable_path="/usr/bin/chromium-browser",
+        )
         context = await browser.new_context(
             user_agent=(
                 "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

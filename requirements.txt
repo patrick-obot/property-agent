@@ -3,3 +3,4 @@ python-telegram-bot[job-queue]>=20.0
 apscheduler
 python-dotenv
 beautifulsoup4
+pdfplumber
