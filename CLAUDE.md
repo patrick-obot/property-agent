@@ -24,7 +24,7 @@ Requires `.env` in the project root (see `.env` section below). On first run it 
 |---|---|---|
 | `TELEGRAM_BOT_TOKEN` | BotFather token | required |
 | `TELEGRAM_CHAT_IDS` | Comma-separated chat IDs | optional |
-| `CHECK_INTERVAL_HOURS` | Legacy — no longer used (schedule is cron-based) | `6` |
+| `CHECK_INTERVAL_HOURS` | Legacy — no longer used | `6` |
 | `DATABASE_PATH` | SQLite file path | `property_agent.db` |
 
 ---
@@ -61,7 +61,7 @@ inffuse.eventscalendar.co/js/v0.1/calendar/data
 
 **Do not** try to scrape the iframe DOM — it is a React app that renders asynchronously and selectors will not match.
 
-**Correct approach** (in `sheroot_scraper.py`):
+**Primary approach** (in `sheroot_scraper.py`):
 1. Launch Playwright (headless Chromium).
 2. Register a `response` listener on the page.
 3. Navigate to the Sheroot page and wait for `networkidle`.
@@ -72,6 +72,19 @@ inffuse.eventscalendar.co/js/v0.1/calendar/data
 Each event has: `startDate`, `title`, `location`, `startHour`, `startMinutes`, `endHour`, `endMinutes`, `links`, `id`.
 
 **Past events are filtered out** — events with a `startDate` before today are skipped entirely.
+
+### Direct PDF Probe Fallback
+
+The Inffuse calendar widget is often **not updated** with new events even when PDFs are already published on the site. To handle this, the scraper probes for PDFs directly after processing calendar events.
+
+**How it works**:
+1. Generate candidate sale dates — every Thursday and Friday for the next 6 weeks
+2. Skip dates already found via the calendar or already cached in DB
+3. For each candidate, build the expected PDF URL using the naming convention (see below)
+4. HTTP GET the URL — if 200, download and extract the PDF text
+5. Emit the event as if it came from the calendar
+
+This fallback ensures the bot discovers new listings even when Sheroot forgets to update their calendar widget.
 
 ### PDF Download & Caching
 
@@ -189,6 +202,29 @@ Install Playwright browsers once:
 ```bash
 playwright install chromium
 ```
+
+---
+
+## Deployment (Raspberry Pi)
+
+The bot runs on a **Raspberry Pi 5** (aarch64/ARM64, Debian Bookworm, Python 3.11).
+
+**ARM64 Playwright workaround**: Playwright does not officially support ARM64. The scraper uses the system-installed Chromium instead:
+```python
+pw.chromium.launch(executable_path="/usr/bin/chromium-browser")
+```
+Install via `sudo apt install chromium-browser`.
+
+**Process management** via crontab:
+```
+@reboot sleep 45 && /home/mypi/Projects/property-agent/venv/bin/python /home/mypi/Projects/property-agent/main.py >> .../logs/bot.log 2>&1 &
+*/15 7-20 * * * pgrep -f "property-agent/main.py" > /dev/null || (cd ... && ... &)
+```
+- `@reboot` starts the bot 45s after boot (waits for network)
+- Health-check every 15 min (07:00–20:00) restarts if crashed
+- **Must use absolute paths** in both the python command and pgrep pattern to avoid path mismatches and duplicate instances
+
+**Logs**: `logs/bot.log` (gitignored)
 
 ---
 

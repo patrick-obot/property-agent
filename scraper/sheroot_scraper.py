@@ -15,7 +15,7 @@ import asyncio
 import io
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, date, timedelta, timezone
 
 import pdfplumber
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
@@ -25,8 +25,27 @@ logger = logging.getLogger(__name__)
 SHEROOT_URL = "https://www.sheroot.co.za/fixed-property-sales.html"
 CALENDAR_API_PATH = "inffuse.eventscalendar.co/js/v0.1/calendar/data"
 SHEROOT_BASE = "https://www.sheroot.co.za"
+PDF_BASE = "https://www.sheroot.co.za/uploads/1/2/4/1/124139032"
 
 _PDF_LINK_RE = re.compile(r'href=["\']([^"\']+\.pdf)["\']', re.IGNORECASE)
+
+
+def _candidate_pdf_dates(today: date, weeks_ahead: int = 6) -> list[date]:
+    """Return upcoming Thursdays and Fridays within the next N weeks as candidate sale dates."""
+    candidates = []
+    d = today
+    end = today + timedelta(weeks=weeks_ahead)
+    while d <= end:
+        if d.weekday() in (3, 4):  # Thursday=3, Friday=4
+            candidates.append(d)
+        d += timedelta(days=1)
+    return candidates
+
+
+def _pdf_url_for_date(d: date) -> str:
+    """Build the expected PDF URL for a given sale date."""
+    month_name = d.strftime("%B").lower()  # e.g. "march"
+    return f"{PDF_BASE}/list.{d.day}_{month_name}_{d.year}.pdf"
 
 
 def _ms_to_iso(ms: int) -> str:
@@ -227,6 +246,46 @@ async def scrape_listings(skip_dates: set | None = None) -> list[dict]:
                     "pdf_url": pdf_url,
                 }
             )
+
+        # --- Direct PDF probe fallback ---
+        # The calendar widget may not list all upcoming events.
+        # Probe known PDF URL patterns for upcoming sale dates.
+        calendar_dates = {e["date"] for e in all_events}
+        skip_dates_set = skip_dates or set()
+        probe_dates = _candidate_pdf_dates(today)
+
+        for d in probe_dates:
+            iso = d.isoformat()
+            if iso in calendar_dates or iso in skip_dates_set:
+                continue  # already handled via calendar or DB cache
+            pdf_url = _pdf_url_for_date(d)
+            logger.info("Probing for PDF: %s", pdf_url)
+            try:
+                resp = await context.request.get(pdf_url)
+                if resp.ok:
+                    pdf_bytes = await resp.body()
+                    logger.info("Direct PDF probe hit for %s: %d bytes", iso, len(pdf_bytes))
+                    pdf_text = _extract_pdf_text(pdf_bytes)
+                    description = (
+                        f"Title: Sale in Execution Fixed Property\n"
+                        f"Date: {iso}\n"
+                        f"\n--- Property List ---\n{pdf_text}"
+                    )
+                    all_events.append({
+                        "title": "Sale in Execution Fixed Property",
+                        "date": iso,
+                        "description": description,
+                        "raw_text": description,
+                        "links": [],
+                        "event_id": f"probe-{iso}",
+                        "location": "",
+                        "pdf_text": pdf_text,
+                        "pdf_url": pdf_url,
+                    })
+                else:
+                    logger.debug("No PDF at %s (HTTP %s)", pdf_url, resp.status)
+            except Exception as exc:
+                logger.debug("PDF probe failed for %s: %s", pdf_url, exc)
 
         await browser.close()
 
