@@ -10,9 +10,9 @@ import asyncio
 import logging
 import sys
 
-from database import db as database
-from bot.telegram_bot import build_application
-from scheduler.job_scheduler import build_scheduler, scrape_and_notify
+from property_agent.database import db as database
+from property_agent.bot.telegram_bot import build_application
+from property_agent.scheduler.job_scheduler import build_scheduler, scrape_and_notify
 
 logging.basicConfig(
     level=logging.INFO,

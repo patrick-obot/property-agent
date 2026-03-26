@@ -20,11 +20,11 @@ from telegram.ext import (
 )
 
 from datetime import date as _date
-from database import db
-from parser.listing_parser import parse_listings, parse_pdf_properties, property_from_db, Property
-from bot.notifications import format_listing_message, format_property_message
-from scheduler.job_scheduler import _matches_property
-from config import TELEGRAM_BOT_TOKEN
+from ..database import db
+from ..parser.listing_parser import parse_listings, parse_pdf_properties, property_from_db, Property
+from .notifications import format_listing_message, format_property_message
+from ..scheduler.job_scheduler import _matches_property
+from ..config import TELEGRAM_BOT_TOKEN
 
 logger = logging.getLogger(__name__)
 
@@ -194,7 +194,7 @@ async def cmd_listings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # --- Slow path: no cache yet, do a live scrape ---
     await update.message.reply_text("\U0001f50d No cached data found — scraping now, please wait...")
     try:
-        from scraper.sheroot_scraper import scrape_listings
+        from ..scraper.sheroot_scraper import scrape_listings
         raw_events = await scrape_listings()
     except Exception as exc:
         logger.exception("Manual scrape failed")

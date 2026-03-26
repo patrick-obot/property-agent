@@ -2,7 +2,7 @@ import sqlite3
 import json
 from datetime import datetime
 from contextlib import contextmanager
-from config import DATABASE_PATH
+from ..config import DATABASE_PATH
 
 # Avoid circular import — Property is imported lazily inside upsert_property
 

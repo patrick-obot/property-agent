@@ -7,7 +7,7 @@ import re
 from datetime import datetime
 from telegram import Bot
 from telegram.error import TelegramError
-from parser.listing_parser import Listing, Property
+from ..parser.listing_parser import Listing, Property
 
 logger = logging.getLogger(__name__)
 

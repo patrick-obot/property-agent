@@ -14,11 +14,11 @@ from datetime import date as _date
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from telegram import Bot
 
-from config import CHECK_INTERVAL_HOURS
-from database import db
-from scraper.sheroot_scraper import scrape_listings
-from parser.listing_parser import parse_pdf_properties, property_from_db, Property
-from bot.notifications import send_notification
+from ..config import CHECK_INTERVAL_HOURS
+from ..database import db
+from ..scraper.sheroot_scraper import scrape_listings
+from ..parser.listing_parser import parse_pdf_properties, property_from_db, Property
+from ..bot.notifications import send_notification
 
 logger = logging.getLogger(__name__)
 

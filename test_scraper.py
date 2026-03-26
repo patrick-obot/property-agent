@@ -2,7 +2,7 @@ import sys, asyncio, logging
 sys.stdout.reconfigure(encoding="utf-8")
 logging.basicConfig(level=logging.INFO, stream=sys.stdout)
 
-from scraper.sheroot_scraper import scrape_listings
+from property_agent.scraper.sheroot_scraper import scrape_listings
 
 results = asyncio.run(scrape_listings())
 sep = "=" * 60
